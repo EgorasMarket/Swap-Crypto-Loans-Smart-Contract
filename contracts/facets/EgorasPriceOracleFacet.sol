@@ -28,7 +28,6 @@ contract EgorasPriceOracleFacet
         ticker[this.converter(_tickers[i])] = _prices[i];
         emit PriceUpdated(_tickers[i], _prices[i], msg.sender, block.timestamp);
         }
-
         emit PrinceChanged(block.timestamp);
 
   }
@@ -60,7 +59,6 @@ contract EgorasPriceOracleFacet
         }
         return string(_baseBytes);
     }
-    
       function _upper(bytes1 _b1)
         private
         pure
