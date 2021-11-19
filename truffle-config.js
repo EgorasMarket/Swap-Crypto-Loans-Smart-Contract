@@ -66,9 +66,17 @@ module.exports = {
     }
 
   },
-  compilers: {
+
+ compilers: {
     solc: {
-      version: "^0.8.0"
+      version: "^0.8.0",
+      settings: {
+        evmVersion: 'byzantium' // Default: "petersburg"
+      },
+      optimizer: {
+        enabled: true,
+        runs: 200
+      }
     }
   },
 

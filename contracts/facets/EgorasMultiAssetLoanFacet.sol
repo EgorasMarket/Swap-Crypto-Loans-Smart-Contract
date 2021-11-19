@@ -30,11 +30,11 @@ contract EgorasMultiAssetLoanFacet {
 /* ========== LIBRARIES ========== */
     using SafeMath for uint;
     using SafeDecimalMath for uint;
-    uint private _BCRATIO = 150 ether;
-    uint private _ACRATIO = 100 ether;
-    uint private _LOANABLE = 6500; // 65%
-    uint private _PENALTY = 3500; // 35%
-    uint private _DIVISOR = 10000;
+    uint private _BCRATIO;
+    uint private _ACRATIO;
+    uint private _LOANABLE; // 65%
+    uint private _PENALTY; // 35%
+    uint private _DIVISOR;
    modifier onlyOwner{
         require(_msgSender() == LibDiamond.contractOwner(), "Access denied, Only owner is allowed!");
         _;
@@ -134,7 +134,7 @@ contract EgorasMultiAssetLoanFacet {
       loanAssetMetas.push(_loanAssetMeta);
       uint256 _lookup = loanAssetMetas.length - 1;
       lookup[__ticker] = _lookup;
-
+      listed[__ticker] = true;
     emit Listed(
         _base,
         _asset,
@@ -207,7 +207,7 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
         require(_collateral > 0,"Collateral must be greater than zero!");
         require(_amount > 0,"Collateral must be greater than zero!");
         PRICEORACLE p = PRICEORACLE(address(this));
-        require(!_maxloan(_collateral, _ticker), "No liquidity!");
+        require(_maxloan(_collateral, _ticker), "No liquidity!");
         uint _maxDraw = __maxDraw(_collateral, _ticker);
         require(_maxDraw >= _amount, "Max loan exceeded!");
         uint lqp = __liquidationPrice(_collateral, _amount);
@@ -226,9 +226,9 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
              require(IERC20(_c).mint(_r,  _a), "Unable to mint!");
         }
         function _saveLoan(uint _collateral, uint _amount, uint _maxDraw, uint  lqp, string memory _ticker, PRICEORACLE p, LoanAssetMeta storage l) internal {
-         uint id = loanids.add(1);
-         loans[id] = Loan({
-            id: id,
+        
+         Loan memory loan = Loan({
+           id: loans.length + 1,
             user: _msgSender(),
             collateral: _collateral,
             ticker: p.converter(_ticker),
@@ -237,6 +237,9 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
             liquidationPrice: lqp,
             stale: false
         });
+      loans.push(loan);
+      uint256 id = loans.length - 1;
+        
             l.maxLoan = l.maxLoan.sub(_amount);
             lastestLoan[_msgSender()][p.converter(_ticker)] = id;
             pendingLoan[_msgSender()][p.converter(_ticker)] = true;
@@ -372,5 +375,37 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
         return _BCRATIO.multiplyDecimalRound(_maxDrawAmount).divideDecimalRound(_ACRATIO.multiplyDecimalRound(_collateral));
     }
 
-  
+function __tickerInfo(string memory _ticker) external view returns(LoanAssetMeta memory _meta) {
+    PRICEORACLE p = PRICEORACLE(address(this));
+    uint _lookup = lookup[p.converter(_ticker)];
+    LoanAssetMeta memory l = loanAssetMetas[_lookup];
+    return(l);
+    }
+
+function __getLoanInfo(string memory _ticker, address _user){
+    PRICEORACLE p = PRICEORACLE(address(this));
+    uint _lookup = lastestLoan[_user][p.converter(_ticker)]
+    Loan memory l = loans[_lookup];
+    return(l);
+}
+
+function __getLoanInfoByID(uint id){
+    Loan memory l = loans[id];
+    return(l);
+}
+
+function ___pendingLoan(address _user, string memory _ticker){
+    PRICEORACLE p = PRICEORACLE(address(this));
+    return pendingLoan[_user][p.converter(_ticker)];
+}
+
+function initvars(uint _DIVISORw, uint _BCRATIOw, uint _ACRATIOw, uint _LOANABLEw, uint _PENALTYw ) external onlyOwner{
+    _BCRATIO = _BCRATIOw;
+    _ACRATIO = _ACRATIOw;
+    _LOANABLE = _LOANABLEw;
+    _PENALTY = _PENALTYw; 
+    _DIVISOR = _DIVISORw;
+}
+
+
 }
