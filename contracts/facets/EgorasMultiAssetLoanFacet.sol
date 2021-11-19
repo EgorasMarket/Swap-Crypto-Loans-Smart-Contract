@@ -382,19 +382,19 @@ function __tickerInfo(string memory _ticker) external view returns(LoanAssetMeta
     return(l);
     }
 
-function __getLoanInfo(string memory _ticker, address _user){
+function __getLoanInfo(string memory _ticker, address _user) external view returns(Loan memory _loan){
     PRICEORACLE p = PRICEORACLE(address(this));
-    uint _lookup = lastestLoan[_user][p.converter(_ticker)]
+    uint _lookup = lastestLoan[_user][p.converter(_ticker)];
     Loan memory l = loans[_lookup];
     return(l);
 }
 
-function __getLoanInfoByID(uint id){
+function __getLoanInfoByID(uint id) external view returns(Loan memory _loan){
     Loan memory l = loans[id];
     return(l);
 }
 
-function ___pendingLoan(address _user, string memory _ticker){
+function ___pendingLoan(address _user, string memory _ticker) external view returns(bool){
     PRICEORACLE p = PRICEORACLE(address(this));
     return pendingLoan[_user][p.converter(_ticker)];
 }
