@@ -209,7 +209,7 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
         PRICEORACLE p = PRICEORACLE(address(this));
         require(_maxloan(_collateral, _ticker), "No liquidity!");
         uint _maxDraw = __maxDraw(_collateral, _ticker);
-        require(_maxDraw >= _amount, "Max loan exceeded!");
+        require(_maxDraw <= _amount, "Max loan exceeded!");
         uint lqp = __liquidationPrice(_collateral, _amount);
         uint _lookup = lookup[p.converter(_ticker)];
         ////
@@ -228,7 +228,7 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
         function _saveLoan(uint _collateral, uint _amount, uint _maxDraw, uint  lqp, string memory _ticker, PRICEORACLE p, LoanAssetMeta storage l) internal {
         
          Loan memory loan = Loan({
-           id: loans.length + 1,
+           id: loans.length,
             user: _msgSender(),
             collateral: _collateral,
             ticker: p.converter(_ticker),
@@ -249,7 +249,7 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
     function _maxloan(uint _collateral, string memory _ticker) internal view returns(bool) {
         PRICEORACLE p = PRICEORACLE(address(this));
         uint xrate = p.price(_ticker);
-        uint value = xrate.multiplyDecimalRound(_collateral);
+        uint value = xrate.multiplyDecimal(_collateral);
         uint key = lookup[p.converter(_ticker)];
         LoanAssetMeta memory l = loanAssetMetas[key];
         return l.maxLoan >= value ? true : false;
@@ -258,34 +258,38 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
     function __maxDraw(uint _collateral, string memory _ticker) internal view returns (uint){
          PRICEORACLE p = PRICEORACLE(address(this));
          uint xrate = p.price(_ticker);
-         uint cAmount = xrate.multiplyDecimalRound(_collateral);
-         return uint(uint(cAmount).divideDecimalRound(uint(_DIVISOR)).multiplyDecimalRound(uint(_LOANABLE)));
+         uint cAmount = xrate.multiplyDecimal(_collateral);
+         return uint(uint(cAmount).divideDecimal(uint(_DIVISOR)).multiplyDecimal(uint(_LOANABLE)));
         
     }
     
-    function repay(uint id, uint _amount, bool isDefault) external payable
+    function repay(uint id, uint _amount, bool isDefault, bool isBurn) external payable
     {
         Loan storage loan = loans[id];
         uint _lookup = lookup[loan.ticker];
         require(loan.user == _msgSender(), "Access denied!");
-        require(loan.stale, "Loan has been repaid or liquidated!");
+        require(!loan.stale, "Loan has been repaid or liquidated!");
         require(loan.debt == _amount, "Invalid repayment amount");
         LoanAssetMeta storage l = loanAssetMetas[_lookup];
         require(_amount <= IERC20(l.base).allowance(_msgSender(), address(this)), "Allowance not high enough");
-        require(IERC20(l.base).burnFrom(_msgSender(), _amount), "Error");
-        
+        isBurn ? require(IERC20(l.base).burnFrom(_msgSender(), _amount), "Error") : require(IERC20(l.base).transferFrom(_msgSender(), address(this), _amount), "Error");
         isDefault ? payable(loan.user).transfer(loan.collateral) : require(IERC20(l.asset).transfer(_msgSender(), loan.collateral), "Error");
         l.maxLoan = l.maxLoan.add(_amount);
         loan.stale = true;
         pendingLoan[_msgSender()][loan.ticker] = false;
         emit Repaid(id, block.timestamp);
     }
+    function liquidateMany(uint[] calldata _id, string[] calldata _tickers, bool[] calldata _isDefault) external{
+           for (uint256 i; i < _id.length; i++) {
+            this.liquidate(_id[i], _tickers[i], _isDefault[i]);
+          }
+    }
 
     function liquidate(uint id, string memory _ticker, bool isDefault) external payable{
         PRICEORACLE p = PRICEORACLE(address(this));
         Loan storage loan = loans[id];
         uint _lookup = lookup[loan.ticker];
-        require(loan.stale, "Loan has been repaid or liquidated!");
+        require(!loan.stale, "Loan has been repaid or liquidated!");
         require(p.price(_ticker) >= loan.liquidationPrice, "You can't liquidate this loan!");
         uint _lAmount = _liquidationAmount(id, _ticker);
         require(_lAmount > 0, "Liquidation amount can't be zero");
@@ -294,6 +298,7 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
         l.maxLoan = l.maxLoan.add(loan.debt);
         isDefault ? payable(loan.user).transfer(_lAmount.sub(_penalty)) : require(IERC20(l.asset).transfer(loan.user, _lAmount.sub(_penalty)), "Error");
         pendingLoan[_msgSender()][loan.ticker] = false;
+        loan.stale = true;
         emit Liquidated(_msgSender(), id, _penalty, _lAmount, block.timestamp);
     }
 
@@ -301,21 +306,21 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
      PRICEORACLE p = PRICEORACLE(address(this));
       Loan memory loan = loans[id];
       uint _debt = loan.debt;
-      uint _collateral = loan.collateral;
+    //   uint _collateral = loan.collateral;
       uint _xrate = p.price(_ticker);
-      uint _lAmount = _debt.divideDecimalRound(_xrate);
-      uint __lAmount =   _collateral >= _lAmount ? _collateral.sub(_lAmount) : 0;
-      return __lAmount;
+      uint _lAmount = _debt.divideDecimal(_xrate);
+    //   uint __lAmount =   _collateral >= _lAmount ? _collateral.sub(_lAmount) : 0;
+      return _lAmount;
     }
 
     function __penalty(uint _lAmount) internal view returns (uint){
-        return uint(uint(_PENALTY).divideDecimalRound(uint(_DIVISOR)).multiplyDecimalRound(uint(_lAmount)));
+        return uint(uint(_PENALTY).divideDecimal(uint(_DIVISOR)).multiplyDecimal(uint(_lAmount)));
     }
     function draw(uint id, uint _amount) external{
         Loan storage loan = loans[id];
         uint _lookup = lookup[loan.ticker];
         require(loan.user == _msgSender(), "Access denied!");
-        require(loan.stale, "Loan has been repaid or liquidated!");
+        require(!loan.stale, "Loan has been repaid or liquidated!");
         require(loan.max >= loan.debt.add(_amount), "Not enough loan!");
         LoanAssetMeta memory l = loanAssetMetas[_lookup];
         require(IERC20(l.base).mint(_msgSender(),  _amount), "Unable to mint!");
@@ -329,7 +334,7 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
     internal view returns(uint, uint, uint, LoanAssetMeta memory _l, Loan storage _loan){
         Loan storage loan = loans[id];
         require(loan.user == _msgSender(), "Access denied!");
-        require(loan.stale, "Loan has been repaid or liquidated!");
+        require(!loan.stale, "Loan has been repaid or liquidated!");
         uint _totalCollateral = loan.collateral.add(_collateral);
         uint _newLqp = __liquidationPrice(_totalCollateral, loan.debt);
         uint _maxDraw = __maxDraw(_totalCollateral, _ticker);
@@ -372,7 +377,7 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
         require(IERC20(l.asset).transferFrom(_msgSender(), address(this), _collateral), "Error");
     }
     function __liquidationPrice(uint _collateral, uint _maxDrawAmount) internal view returns(uint){
-        return _BCRATIO.multiplyDecimalRound(_maxDrawAmount).divideDecimalRound(_ACRATIO.multiplyDecimalRound(_collateral));
+        return _BCRATIO.multiplyDecimal(_maxDrawAmount).divideDecimal(_ACRATIO.multiplyDecimal(_collateral));
     }
 
 function __tickerInfo(string memory _ticker) external view returns(LoanAssetMeta memory _meta) {
