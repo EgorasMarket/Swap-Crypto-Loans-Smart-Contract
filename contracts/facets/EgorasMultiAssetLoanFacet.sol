@@ -279,6 +279,7 @@ function getLastestLoan(address _borrower, string memory _ticker) external view 
         pendingLoan[_msgSender()][loan.ticker] = false;
         emit Repaid(id, block.timestamp);
     }
+    // 
     function liquidateMany(uint[] calldata _id, string[] calldata _tickers, bool[] calldata _isDefault) external{
            for (uint256 i; i < _id.length; i++) {
             this.liquidate(_id[i], _tickers[i], _isDefault[i]);
