@@ -7,6 +7,7 @@ const DiamondLoupeFacet = artifacts.require('DiamondLoupeFacet')
 const OwnershipFacet = artifacts.require('OwnershipFacet')
 const EgorasPriceOracleFacet = artifacts.require('EgorasPriceOracleFacet')
 const EgorasMultiAssetLoanFacet = artifacts.require('EgorasMultiAssetLoanFacet')
+const EgorasExchangeFacet = artifacts.require('EgorasExchangeFacet')
 
 const FacetCutAction = {
   Add: 0,
@@ -29,6 +30,7 @@ function getSelectors (contract) {
 module.exports = function (deployer, network, accounts) {
  deployer.deploy(EgorasPriceOracleFacet);
  deployer.deploy(EgorasMultiAssetLoanFacet);
+ deployer.deploy(EgorasExchangeFacet);
 
   deployer.deploy(DiamondCutFacet)
   deployer.deploy(DiamondLoupeFacet)
@@ -38,6 +40,7 @@ module.exports = function (deployer, network, accounts) {
       [DiamondLoupeFacet.address, FacetCutAction.Add, getSelectors(DiamondLoupeFacet)],
       [EgorasPriceOracleFacet.address, FacetCutAction.Add, getSelectors(EgorasPriceOracleFacet)],
       [EgorasMultiAssetLoanFacet.address, FacetCutAction.Add, getSelectors(EgorasMultiAssetLoanFacet)],
+      [EgorasExchangeFacet.address, FacetCutAction.Add, getSelectors(EgorasExchangeFacet)],
       [OwnershipFacet.address, FacetCutAction.Add, getSelectors(OwnershipFacet)],
     ]
     return deployer.deploy(EgorasDao, diamondCut, [accounts[0]])

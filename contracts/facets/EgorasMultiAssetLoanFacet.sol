@@ -394,7 +394,12 @@ function __getLoanInfo(string memory _ticker, address _user) external view retur
     Loan memory l = loans[_lookup];
     return(l);
 }
-
+function getTickerInfo(string memory _ticker) external view returns(address, address, bool, uint, address, address) {
+    PRICEORACLE p = PRICEORACLE(address(this));
+    uint _lookup = lookup[p.converter(_ticker)];
+    LoanAssetMeta memory l = loanAssetMetas[_lookup];
+    return(l.base, l.asset, l.live, l.maxLoan, l.secretary, l.creator);
+}
 function __getLoanInfoByID(uint id) external view returns(Loan memory _loan){
     Loan memory l = loans[id];
     return(l);
