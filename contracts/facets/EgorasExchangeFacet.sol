@@ -277,4 +277,5 @@ function getTickerMeta(string memory _ticker) external view returns(LoanMeta mem
         return(userLiquidity[_provider][___ticker][true], userLiquidity[_provider][___ticker][false]);
     }
 
+
 }
