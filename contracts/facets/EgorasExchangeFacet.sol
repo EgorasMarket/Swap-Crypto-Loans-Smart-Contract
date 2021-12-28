@@ -175,20 +175,27 @@ function getTickerMeta(string memory _ticker) external view returns(LoanMeta mem
       uint convertToDefault = isGetDefault ? _getFeeAmount.divideDecimal(_feePrice) : _getAmount(_tickerPrice, _getFeeAmount, false).divideDecimal(_feePrice);
       return convertToDefault;
   }
-  function addLiquidity(string memory _ticker, uint _amount) external{
+  function _addLiquidity(string memory _ticker, uint _amount) internal{
       require(_amount > 0, "Zero value provided!");
       address _c = _getContract(_ticker,false);
       _tFrom(_c, _amount, address(this));
       require(recordIt(_ticker,_amount, false), "Recording failed!");
       emit liquidityAdded(msg.sender, _ticker, _amount, block.timestamp);
   }
-  function addDefaultLiquidity(string memory _ticker) external payable{
-      uint _amount = msg.value;
+  function _addDefaultLiquidity(string memory _ticker, uint _amount) internal{
       require(_amount > 0, "Zero value provided!");
       require(recordIt(_ticker,_amount, true), "Recording failed!");
       emit liquidityAdded(msg.sender, _ticker, _amount, block.timestamp);
   }
 
+    function addLiquidity(string memory _ticker) external payable{
+       uint _amount = msg.value;
+       uint _marketPrice = _getPr(_ticker);
+       uint getAmount = _getAmount(_marketPrice, _amount, true);
+       _addLiquidity(_ticker, getAmount);
+       _addDefaultLiquidity(_ticker,_amount);
+
+    }
   function recordIt(string memory _ticker, uint _amount, bool which) internal returns(bool){
       bytes memory __ticker = _getTick(_ticker);
       totalMarketLiquidity[__ticker][which] = totalMarketLiquidity[_getTick(_ticker)][which].add(_amount);
@@ -213,7 +220,7 @@ function getTickerMeta(string memory _ticker) external view returns(LoanMeta mem
        uint poolshARE = totalCombineUserLiquidity.divideDecimal(totalCombineTokenLiquidity);
        return  poolshARE.multiplyDecimal(totalCombineTokenLiquidity);
   }
- function removeLiquidity(string memory _ticker, bool isDefault) external{
+ function _removeLiquidity(string memory _ticker, bool isDefault) internal{
      bytes memory ___ticker = _getTick(_ticker);
      uint _due = this.withdrawable(_ticker, isDefault, msg.sender);
      isDefault ? _trd(_due, msg.sender) : _tr(_due, msg.sender, _getContract(_ticker, false));
@@ -221,6 +228,11 @@ function getTickerMeta(string memory _ticker) external view returns(LoanMeta mem
      isDefault ? userLiquidity[msg.sender][___ticker][true] = 0 : userLiquidity[msg.sender][___ticker][true] = 0;
 
      emit LiquidityRemoved(_due, isDefault, userLiquidity[msg.sender][___ticker][true], msg.sender, block.timestamp);
+ }
+
+ function removeLiquidity(string memory _ticker) external{
+     _removeLiquidity(_ticker,false);
+     _removeLiquidity(_ticker,true);
  }
     function _shareSingleFees(string memory _ticker) internal {
         uint __price = _getPr(_ticker);
