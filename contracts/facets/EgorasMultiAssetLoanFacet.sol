@@ -45,6 +45,7 @@ contract EgorasMultiAssetLoanFacet {
         bool _live,
         uint _maxLoan,
         string _ticker,
+        bool _isEx,
         address _creator,
         uint _time
     );
@@ -112,7 +113,8 @@ contract EgorasMultiAssetLoanFacet {
         address _base, address _asset,
         address _secretary, bool _live,
         string memory _ticker,
-        uint _maxLoan
+        uint _maxLoan,
+        bool isEx
     ) external onlyOwner{
       require(gp(_ticker) > 0, "Price not found");
       bytes memory __ticker = cvert(_ticker);
@@ -137,6 +139,7 @@ contract EgorasMultiAssetLoanFacet {
         _live,
         _maxLoan,
         _ticker,
+        isEx,
         _msgSender(),
         block.timestamp
     );

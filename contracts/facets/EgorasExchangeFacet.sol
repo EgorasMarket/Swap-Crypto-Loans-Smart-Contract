@@ -127,6 +127,7 @@ function getTickerMeta(string memory _ticker) external view returns(LoanMeta mem
         uint _marketPrice = _getPr(_ticker);
         uint getAmount = _getAmount(_marketPrice, _amount, false);
         require(_bd(address(this)) >= getAmount, "No fund to execute the trade");
+        require(_checkLiquidity(_getTick(_ticker), getAmount, true), "No liquidity!");
         _trd(getAmount, msg.sender);
         _trF(getAmount, true, _ticker);
         _update(_ticker, getAmount, true, false);
@@ -142,6 +143,7 @@ function getTickerMeta(string memory _ticker) external view returns(LoanMeta mem
         uint _marketPrice = _getPr(_ticker);
         uint getAmount = _getAmount(_marketPrice, _amount, true);
         require(_bOf(_getContract(_ticker,false), address(this)) >= getAmount, "No fund to execute the trade");
+        require(_checkLiquidity(_getTick(_ticker), getAmount, false), "No liquidity!");
         _tr(getAmount, msg.sender, _getContract(_ticker, false));
         _trF(getAmount, false, _ticker);
         _update(_ticker, getAmount, false, false);
@@ -156,6 +158,7 @@ function getTickerMeta(string memory _ticker) external view returns(LoanMeta mem
         uint getAmount = _getAmount(_marketPrice, _amount, false);
         uint _finalMarketPrice = _getPr(_to);
         uint getFinalAmount = _getAmount(_finalMarketPrice, getAmount, true);
+        require(_checkLiquidity(_getTick(_to), getFinalAmount, false), "No liquidity!");
         require(_bOf(_getContract(_to,false), address(this)) >= getFinalAmount, "No fund to execute the trade");
          _tr(getFinalAmount, msg.sender, _getContract(_to, false));
         _trF(getFinalAmount, false, _to);
@@ -188,6 +191,9 @@ function getTickerMeta(string memory _ticker) external view returns(LoanMeta mem
       emit liquidityAdded(msg.sender, _ticker, _amount, block.timestamp);
   }
 
+function _checkLiquidity(bytes memory _ticker, uint _amount, bool _which) internal view returns(bool){
+    return totalMarketLiquidity[_ticker][_which] >= _amount;
+}
     function addLiquidity(string memory _ticker) external payable{
        uint _amount = msg.value;
        uint _marketPrice = _getPr(_ticker);
